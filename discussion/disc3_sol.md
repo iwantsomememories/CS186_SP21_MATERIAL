@@ -4,94 +4,78 @@
 
 ## 1 Indices (B+ Trees)
 
-**假设我们有以下阶数为 1 的 B+ 树。每个索引节点必须包含 1 或 2 个键（即 2 或 3 个指针），而叶子节点最多可以容纳 2 个条目。**
+ Assume we have the following B+ Tree of order 1. Each index node must have either 1 or 2 keys (2 or 3 pointers), and the leaf nodes can hold up to 2 entries.
 
-**(a) 在不改变树的高度的情况下，最多可以执行多少次插入操作？**
+ (a) What is the maximum number of insertions we can do without changing the height of the tree?
 
-12
+**12**
 
-**(b) 需要插入的最少键数是多少才能使树的高度发生变化？**
+ (b) What is the minimum number of keys you could insert to change the height of the tree?
 
-3
+**3**
 
 
 
-## 2 Indices
+##  2 Indices
 
-**两组术语：**
+**Two sets of terminology:** 
 
-**聚簇（Clustered） vs. 非聚簇（Unclustered）**
+Clustered vs. unclustered 
 
-- **在聚簇索引（Clustered Index）中，数据页按照构建B+ 树 的相同索引进行排序。这意味着键值的大致顺序与数据页的顺序相同，因此每获取一页记录大约需要 1 次 I/O。**
-- **在非聚簇索引（Unclustered Index）中，数据页是无序的，这意味着每获取一条记录大约需要 1 次 I/O。**
+- In a clustered index, the data pages are sorted using the same index that build the B+ Tree. This means the keys are roughly sorted in the same order as the data pages, so it’d cost ~1 I/O per page of records wanted. 
+- In an unclustered index, the data pages are unsorted, meaning chances are it’d cost ~1 I/O per record wanted.
 
-**存储底层数据的三种替代方案：**
+Three alternatives for storing underlying data: 
 
-- **替代方案 1（按值存储）： 整个记录直接存储在叶子页中。**
-- **替代方案 2（按引用存储）： 叶子页存储 `(key: 指向 rid 的指针)` 对，每个键值可能不唯一。**
-- **替代方案 3（按引用存储）： 叶子页存储 `(key: [指向 rid1 的指针, 指向 rid2 的指针, ...])` 对，每个键值唯一。**
+- Alternative 1 (by value): the entire record is directly stored in the leaf page 
+- Alternative 2 (by reference): (key: ptr to rid) pairs are stored in the leaf pages, where each key may not be distinct 
+- Alternative 3 (by reference): (key: [ptr to rid1, ptr to rid2, ...]) pairs are stored in the leaf pages, where each key is distinct
 
-**(a) 是否可能在不同的列上创建两个聚簇索引？**
 
-如果不同的列的键值之间成正比，则可能，否则不可能。
 
-<font color='red'>是，但是需要存储数据的两份拷贝。</font>
+(a) Is it possible to have two clustered indices on separate columns? 
 
-**假设我们在 `(assignment_id, student_id)` 上有一个替代方案 2 的非聚簇索引，其高度为 3（需要遍历 3 个索引页才能到达任何叶子页）。**
+**yes**
 
-**以下是表模式：**
+​	Suppose we have an alternative 2 unclustered index on (assignment_id, student_id) with a height of 3 (one must traverse 3 index pages to reach any leaf page). 
 
-```sql
-CREATE TABLE Submissions (
-    record_id integer UNIQUE,
-    assignment_id integer,
-    student_id integer,
-    time_submitted integer,
-    grade_received byte,
-    comment text,
-    regrade_request text,
-    PRIMARY KEY (assignment_id, student_id)
-);
-CREATE INDEX SubmissionLookupIndex ON Submissions (
-    assignment_id, student_id
-);
-```
-
-**假设表及其相关数据占用 12MB 磁盘空间（1MB = 1024KB），每个页大小为 64KB（包括为未来插入预留的额外空间）。**
-
-**(b) 我们想要扫描 `Submissions` 表中的所有记录。此操作需要多少次 I/O？**
-
-192
-
-**(c) 执行以下 `UPDATE` 语句需要多少次 I/O？**
+​	Here’s the schema: 
 
 ```sql
-UPDATE Students 
-SET grade_received = 85 
-WHERE assignment_id = 20 
-AND student_id = 12345;
+CREATE TABLE Submissions ( 
+	record_id integer UNIQUE, 
+	assignment_id integer, 
+	student_id integer, 
+	time_submitted integer, 
+	grade_received byte, 
+	comment text, 
+	regrade_request text, 
+PRIMARY KEY(assignment_id, student_id)); 
+
+CREATE INDEX SubmissionLookupIndex ON Submissions ( 
+	assignment_id, student_id); 
 ```
 
-5
+Assume the table and its associated data takes up 12 MB on disk (1 MB = 1024 KB) and that page size is 64 KB. (This includes extra space allocated for future insertions.)
 
-<font color='red'>6 = 4 + 1 + 1</font>
+(b) We want to scan all the records in Submissions. How many I/Os will this operation take? 
 
-**(d) 在最坏情况下，对 `grade_received` 进行等值搜索需要多少次 I/O？**
+**195 ** **正确答案：192， 直接读data**
 
-192
+(c) UPDATE Students SET grade_received=85 WHERE assignment_id=20 AND student_id=12345; How many I/Os will this operation take? 
+
+**6**
+
+(d) In the worst case, how many I/Os does it take to perform an equality search on grade_received?
+
+**195** **正确答案：192， 直接读data**
 
 
 
 ## 3 Bulk-Loading
 
-**假设我们使用批量加载方式创建阶数 d=2 的 B+ 树，并设定填充因子为 $\frac{3}{4}$。**
+ Suppose we were to create an order d=2 B+ tree via bulk-loading with a fill factor of 3/4. Here, fill factor specifies the fill factor for leaves only; inner nodes should be filled up to full and split in half exactly. 
 
-**其中，填充因子仅适用于叶子节点；内部节点应完全填满，并在分裂时平均分割。**
+We insert keys with all integer values from 1-16 in order. Draw out the final B+ tree. What is its height?
 
-**我们按顺序插入整数键 1-16，请画出最终的 B+ 树结构，并回答以下问题：**
-
-- **最终的树高是多少？**
-
-最终树高为3。
-
-<font color='red'>最终树高为2。</font>
+**2**

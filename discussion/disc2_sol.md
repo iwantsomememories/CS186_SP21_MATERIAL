@@ -4,67 +4,61 @@
 
 ## 1 True and False
 
-**(a) 查询16字节记录时，确切地从磁盘读取16字节数据。**
+(a) When querying for a 16 byte record, exactly 16 bytes of data is read from disk.
 
-错
+**错误**
 
- **(b) 向SSD驱动器写入的成本高于从SSD驱动器读取。**
+(b) Writing to an SSD drive is more costly than reading from an SSD drive.
 
-对
+**正确**
 
- **(c) 在堆文件中，所有页面必须被填充到最大容量，除了最后一页。**
+(c) In a heap file, all pages must be filled to capacity except the last page.
 
-错
+**错误**
 
- **(d) 假设整数占用4字节，指针占用4字节，一个大小为512字节的槽目录可以在一页中寻址64条记录。**
+(d) Assuming integers take 4 bytes and pointers take 4 bytes, a slot directory that is 512 bytes can
+address 64 records in a page.
 
-错
+**错误**
 
- **(e) 在一个包含固定长度记录且没有可空字段的页面中，位图的大小永远不会改变。**
+(e) In a page containing fixed-length records with no nullable fields, the size of the bitmap never
+changes.
 
-对
+**正确**
 
 
 
-**关于使用记录头来处理可变长度记录的好处，以下哪些是正确的？**
+Which of the following are true about the benefits of using a record header for variable length
+records?
+(a) Does not need a delimiter character to separate fields in the records
+(b) Always matches or beats space cost when compared to fixed-length record format
+(c) Can access any field without scanning the entire record
+(d) Has compact representation of null values
 
- **(a) 不需要使用分隔符字符来分隔记录中的字段**
-
-对
-
- **(b) 与固定长度记录格式相比，空间成本始终匹配或优于**
-
-错
-
- **(c) 可以在不扫描整个记录的情况下访问任何字段**
-
-对
-
- **(d) 对空值具有紧凑的表示**
-
-对
+**a,c,d**
 
 
 
 ## 2 Fragmentation And Record Formats
 
-**(a) 在打包固定长度记录页面格式中，碎片化是一个问题吗？**
+(a) Is fragmentation an issue with packed fixed length record page format?
 
-不是
+**不是**
 
- **(b) 在具有槽页面的可变长度记录中，碎片化是一个问题吗？**
+(b) Is fragmentation an issue with variable length records on a slotted page?
 
-是
+**是的**
 
-**(c) 我们通常在具有固定长度记录的页面中使用位图。为什么不直接在具有固定长度记录的页面中使用槽页面？**
+(c) We usually use bitmaps for pages with fixed-length records. Why not just use a slotted page
+for pages with fixed-length records?
 
-对于固定长度记录，可以通过简单的算术运算得到记录在页面中的位置，无需使用槽页面。
+**bitmap占用空间更小**
 
 
 
 ## 3 Record Formats
 
-**假设我们有一个如下所示的表：**
+Assume we have a table that looks like this:
 
 ```sql
 CREATE TABLE Questions (
@@ -74,42 +68,50 @@ CREATE TABLE Questions (
 );
 ```
 
-**回想一下，整数和指针都是4字节长。假设在此问题中，记录头存储指向所有可变长度字段的指针（记录头中只有这些指针）。**
+Recall that integers and pointers are 4 bytes long. Assume for this question that the record header
+stores pointers to all of the variable length fields (but that is all that is in the record header).
 
-**(a) 最小可能的记录需要多少字节？**
+(a) How many bytes will the smallest possible record be?
 
-12
+**12**
 
-**(b) 现在假设每个字段都是可空的，因此我们在记录头的开始部分添加一个位图，指示每个字段是否为空。假设该位图进行了填充，使其占用整字节数（例如，如果位图是10位，它将占用2个完整字节）。假设`qtext`字段为空，最大的可能记录有多大？**
+(b) Now assume each field is nullable so we add a bitmap to the beginning of our record header
+indicating whether or not each field is null. Assume this bitmap is padded so that it takes up a
+whole number of bytes (i.e. if the bitmap is 10 bits it will take up 2 full bytes). How big is the
+largest possible record assuming that the qtext is null?
 
-21
+**13**
 
-<font color='red'>13</font>
+
 
 ## 4 Calculate the IOs with Linked List Implementation
 
-**假设我们有一个通过链表实现的堆文件 A，且堆文件 A 有 5 个已满的页面和 2 个有空闲空间的页面，其中至少一个页面有足够的空间来插入一个记录。**
+Assume we have a heap file A implemented with a linked list and heap file A has 5 full pages and
+2 pages with free space, at least one of which has enough space to fit a record.
 
-**(a) 在最坏的情况下，需要多少次 I/O 操作才能找到一个具有足够空闲空间的页面来插入记录？**
+(a) In the worst case, how many IOs are required to find a page with enough free space to insert a
+record?
 
-3
+**3**
 
-**(b) 在最坏的情况下，写入记录到第二个有空闲空间的页面需要多少次 I/O 操作？考虑写入后，页面变满，并假设头页面可以在已满页面链表的开始处插入记录。**
+(b) In the worst case, how many IOs are required to write a record to the 2nd page with free space?
+Consider what happens when after writing, the page becomes full and assume that the header
+page can insert at the beginning of the full pages linked list.
 
-8
+**8**
 
 
 
 ## 5 Calculate the IOs with Page Directory Implementation
 
-**假设我们有一个通过页面目录实现的堆文件 B。目录中的一个页面可以容纳 16 个页面条目。文件 A 中共有 54 个页面。**
+Assume we have a heap file B implemented with a page directory. One page in the directory can
+hold 16 page entries. There are 54 pages in file A in total.
 
-**(a) 在最坏的情况下，需要多少次 I/O 操作才能找到一个有空闲空间的页面？**
+(a) In the worst case, how many IOs are required to find a page with free space?
 
-4
+**4**
 
-**(b) 在最坏的情况下，写入记录到一个有空闲空间的页面需要多少次 I/O 操作（假设至少有一个空闲页面有足够的空间来插入记录）？**
+(b) In the worst case, how many IOs are required to write a record to a page with free space
+(assuming at least one free page with enough space to insert a record exists)?
 
-6
-
-<font color='red'>7 = 4 + 1 + 1 + 1</font>
+**7**
